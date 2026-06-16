@@ -25,6 +25,14 @@
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
         }
+        /* Smooth tab transition fade-in */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .tab-content:not(.hidden) {
+            animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
     </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
@@ -1166,70 +1174,72 @@
             // Redraw ChartJS
             const chartCanvas = document.getElementById('bernoulliChart');
             if (!chartCanvas) return;
-            const ctx = chartCanvas.getContext('2d');
             
             if (myChart) {
-                myChart.destroy();
-            }
-
-            myChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Mặt cắt 7', 'Mặt cắt 8', 'Mặt cắt 9 (Họng)', 'Mặt cắt 10', 'Mặt cắt 11'],
-                    datasets: [
-                        {
-                            label: 'Đường năng lượng EGL (Cột nước toàn phần)',
-                            data: EGL,
-                            borderColor: '#4f46e5',
-                            backgroundColor: 'rgba(79, 70, 229, 0.05)',
-                            fill: true,
-                            tension: 0.2,
-                            borderWidth: 3,
-                            pointRadius: 5,
-                            pointBackgroundColor: '#4f46e5'
-                        },
-                        {
-                            label: 'Đường áp lực HGL (Cột áp tĩnh)',
-                            data: HGL,
-                            borderColor: '#2563eb',
-                            backgroundColor: 'rgba(37, 99, 235, 0.05)',
-                            fill: true,
-                            tension: 0.2,
-                            borderWidth: 3,
-                            pointRadius: 5,
-                            pointBackgroundColor: '#2563eb'
-                        }
-                    ]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'top',
-                            labels: {
-                                boxWidth: 12,
-                                font: {
-                                    size: 11,
-                                    weight: 'bold'
+                myChart.data.datasets[0].data = EGL;
+                myChart.data.datasets[1].data = HGL;
+                myChart.update();
+            } else {
+                const ctx = chartCanvas.getContext('2d');
+                myChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Mặt cắt 7', 'Mặt cắt 8', 'Mặt cắt 9 (Họng)', 'Mặt cắt 10', 'Mặt cắt 11'],
+                        datasets: [
+                            {
+                                label: 'Đường năng lượng EGL (Cột nước toàn phần)',
+                                data: EGL,
+                                borderColor: '#4f46e5',
+                                backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                                fill: true,
+                                tension: 0.2,
+                                borderWidth: 3,
+                                pointRadius: 5,
+                                pointBackgroundColor: '#4f46e5'
+                            },
+                            {
+                                label: 'Đường áp lực HGL (Cột áp tĩnh)',
+                                data: HGL,
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                                fill: true,
+                                tension: 0.2,
+                                borderWidth: 3,
+                                pointRadius: 5,
+                                pointBackgroundColor: '#2563eb'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    font: {
+                                        size: 11,
+                                        weight: 'bold'
+                                    }
                                 }
                             }
-                        }
-                    },
-                    scales: {
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'Chiều cao cột nước (cm)',
-                                font: {
-                                    weight: 'bold'
-                                }
-                            },
-                            suggestedMin: 0
+                        },
+                        scales: {
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: 'Chiều cao cột nước (cm)',
+                                    font: {
+                                        weight: 'bold'
+                                    }
+                                },
+                                suggestedMin: 0
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
     </script>
 </body>
