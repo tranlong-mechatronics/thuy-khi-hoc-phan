@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ Tính toán Thí nghiệm Thủy khí</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js for Bernoulli graph -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        /* Custom scrollbar for clean table scrolling on mobile */
+        .custom-scrollbar::-webkit-scrollbar {
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen pb-12">
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-md">
+        <div class="max-w-5xl mx-auto px-4 py-5 text-center md:text-left">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold tracking-wide">BÁO CÁO THÍ NGHIỆM THỦY KHÍ</h1>
+                    <p class="text-xs md:text-sm text-blue-100 mt-1">Trường Đại học Phenikaa • Khoa Kỹ thuật Ô tô và Năng lượng</p>
+                </div>
+                <div class="flex flex-wrap gap-2 items-center justify-center">
+                    <div id="cloud-status" class="transition-all duration-300">
+                        <span class="text-xs bg-white/10 text-slate-300 px-3 py-1.5 rounded-full font-semibold backdrop-blur-sm">
+                            <i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Đang kết nối đám mây...
+                        </span>
+                    </div>
+                    <div class="bg-white/10 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm">
+                        <i class="fa-solid fa-mobile-screen-button mr-1.5"></i> Chế độ Di động Tối ưu
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-5xl mx-auto px-3 mt-6">
+
+        <!-- Quick Settings & Cloud Monitor Card -->
+        <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-6">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
+                <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">
+                    <i class="fa-solid fa-sliders text-blue-600 mr-2"></i>Thông số cơ sở ban đầu
+                </h2>
+                <div id="cloud-save-indicator" class="text-xs font-semibold text-indigo-600 transition-all duration-300 font-mono">
+                    <!-- Dynamic save indicator -->
+                </div>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Đường kính ống D (mm)</label>
+                    <input type="number" id="base-d" value="26" step="any" oninput="calculateAll(); calculateLosses(); updateBernoulliGraph(false); triggerAutoSave();" 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-1">Nhiệt độ nước T (°C)</label>
+                    <input type="number" id="base-t" value="30" step="any" oninput="calculateAll(); calculateLosses(); updateBernoulliGraph(false); triggerAutoSave();" 
+                           class="w-full bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-500 mb-2">Độ nhớt động học &nu;</label>
+                    <div class="flex items-center bg-slate-50 border border-slate-200 rounded-lg px-2 py-1">
+                        <input type="number" id="base-nu" value="0.87" step="any" oninput="calculateAll(); calculateLosses(); updateBernoulliGraph(false); triggerAutoSave();" 
+                               class="w-full bg-transparent border-none text-sm font-semibold focus:outline-none py-1">
+                        <span class="text-xs text-slate-400 font-mono ml-1">x10⁻⁶</span>
+                    </div>
+                </div>
+                <div class="col-span-2 md:col-span-1 flex gap-2 items-end">
+                    <button onclick="resetDefaults()" 
+                            class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 h-[38px]">
+                        <i class="fa-solid fa-arrow-rotate-left"></i>Mặc định
+                    </button>
+                    <button onclick="forceCloudSave()" 
+                            class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 h-[38px] border border-indigo-100">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>Lưu mây
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tab Navigation (Mobile friendly scrolling tabs) -->
+        <div class="flex border-b border-slate-200 overflow-x-auto custom-scrollbar gap-2 mb-6 scroll-smooth">
+            <button onclick="switchTab('tab1')" id="btn-tab1" class="tab-btn px-4 py-2.5 font-bold text-sm border-b-2 border-blue-600 text-blue-600 whitespace-nowrap">
+                <i class="fa-solid fa-water mr-2"></i>TN 1: Trạng thái chảy
+            </button>
+            <button onclick="switchTab('tab2')" id="btn-tab2" class="tab-btn px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                <i class="fa-solid fa-chart-line mr-2"></i>TN 2-3-4: Hao hụt & Tổn thất
+            </button>
+            <button onclick="switchTab('tab3')" id="btn-tab3" class="tab-btn px-4 py-2.5 font-bold text-sm border-b-2 border-transparent text-slate-500 hover:text-slate-800 whitespace-nowrap">
+                <i class="fa-solid fa-bezier-curve mr-2"></i>TN 5: Đồ thị Bernoulli
+            </button>
+        </div>
+
+        <!-- TAB 1: REYNOLDS (TRẠNG THÁI CHẢY) -->
+        <div id="tab1" class="tab-content block">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
+                <div class="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border-b border-slate-100 flex justify-between items-center">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base">Bảng 1: Số liệu thực nghiệm dòng chảy Tầng / Rối</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Dữ liệu được tự động tính dựa trên lưu lượng <span class="font-semibold text-blue-700">Q</span> bạn nhập.</p>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/70 border-b border-slate-200 text-slate-600 text-xs font-semibold">
+                                <th class="p-3 text-center w-12">TT</th>
+                                <th class="p-3 text-center">Q (l/ph)</th>
+                                <th class="p-3 text-center">Q (m³/s)</th>
+                                <th class="p-3 text-center">Vận tốc V (m/s)</th>
+                                <th class="p-3 text-center">Reynolds (Re)</th>
+                                <th class="p-3 text-center">Trạng thái (Tính toán)</th>
+                                <th class="p-3 text-center w-32">Thực tế (Quan sát)</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm" id="reynolds-table-body">
+                            <!-- JS will generate rows here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Analysis Section -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-5">
+                <h4 class="font-bold text-slate-800 mb-3"><i class="fa-solid fa-pen-nib text-indigo-600 mr-2"></i>Nhận xét gợi ý cho báo cáo (Phần 1.4)</h4>
+                <div class="bg-indigo-50/50 rounded-xl p-4 text-slate-700 text-sm leading-relaxed space-y-3 border border-indigo-100/50">
+                    <p>
+                        <strong>1. So sánh lý thuyết và thực nghiệm:</strong> 
+                        Tại các lưu lượng thấp từ <span class="font-semibold text-blue-700">0.5 đến 2.0 l/ph</span>, tính toán lý thuyết cho ra chỉ số Reynolds nằm trong khoảng <span id="re-range-laminar" class="font-semibold text-indigo-700">...</span> (đều nhỏ hơn 2320). Trạng thái thực tế quan sát qua đường ống dẫn màu cho thấy đường màu đi thẳng, mảnh, không bị uốn lượn hay đứt gãy. Do đó, kết quả thực nghiệm hoàn toàn trùng khớp với lý thuyết dòng chảy tầng.
+                    </p>
+                    <p>
+                        Tại mức lưu lượng trung bình và lớn (<span class="font-semibold text-blue-700">2.50 đến 4.00 l/ph</span>), số <span class="font-bold text-indigo-700">Re</span> tính toán tăng dần từ <span id="re-range-trans" class="font-semibold text-indigo-700">...</span>. Về mặt lý thuyết, đây là vùng chảy chuyển tiếp và tiến dần đến chảy rối. Trên thực tế quan sát, đường dòng bắt đầu có hiện tượng uốn sóng lượn và sau đó vỡ ra, hòa trộn vào dòng nước chung ở mức xả lớn nhất, xác nhận sự chuyển dịch trạng thái rất rõ rệt.
+                    </p>
+                    <p>
+                        <strong>2. Phân tích nguyên nhân gây sai số:</strong>
+                    </p>
+                    <ul class="list-disc pl-5 space-y-1.5 text-slate-600 text-xs">
+                        <li><strong>Rung động hệ thống:</strong> Bơm ly tâm hoạt động có thể truyền rung động cơ học vào giá đỡ thiết bị, kích thích sự mất ổn định của dòng màu sớm hơn điều kiện lý thuyết tĩnh.</li>
+                        <li><strong>Đọc lưu lượng bằng mắt:</strong> Thước đo trên ống lưu lượng kế thủy lực có độ dao động nhẹ và dung sai góc nhìn của người quan sát dẫn đến giá trị <span class="font-bold text-blue-700">Q</span> có sai lệch nhỏ.</li>
+                        <li><strong>Dung sai nhiệt độ:</strong> Nhiệt độ nước có thể biến động nhẹ trong suốt quá trình làm thí nghiệm kéo dài, ảnh hưởng gián tiếp đến độ nhớt động học <span class="font-semibold text-indigo-700">&nu;</span>.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: LOSS COEFFICIENTS (THÍ NGHIỆM 2 - 3 - 4) -->
+        <div id="tab2" class="tab-content hidden">
+            <!-- Navigation Sub-tabs -->
+            <div class="grid grid-cols-3 gap-2 mb-4 bg-slate-100 p-1 rounded-xl">
+                <button onclick="switchSubTab('sub2')" id="btn-sub2" class="subtab-btn py-1.5 text-xs font-bold rounded-lg text-blue-600 bg-white shadow-sm">
+                    TN2: Tổn thất dọc đường
+                </button>
+                <button onclick="switchSubTab('sub3')" id="btn-sub3" class="subtab-btn py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-800">
+                    TN3: Tổn thất đột mở
+                </button>
+                <button onclick="switchSubTab('sub4')" id="btn-sub4" class="subtab-btn py-1.5 text-xs font-bold rounded-lg text-slate-600 hover:text-slate-800">
+                    TN4: Tổn thất đột thu
+                </button>
+            </div>
+
+            <!-- TN2: Dọc đường -->
+            <div id="sub2-panel" class="subtab-panel block space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800">Thí nghiệm 2: Hệ số sức cản dọc đường</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Ống nghiệm đoạn 1-1 đến 2-2. Đường kính <span class="font-semibold text-blue-700">d = 12 mm</span>.</p>
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-xs font-medium text-slate-500">Chiều dài <span class="font-semibold text-blue-700">l (m)</span>:</span>
+                            <input type="number" id="tn2-l" value="0.8" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                                   class="w-20 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-semibold focus:outline-none">
+                        </div>
+                        <div class="flex gap-2 items-center">
+                            <span class="text-xs font-medium text-slate-500">Độ nhám thành <span class="font-semibold text-indigo-700">&epsilon; (mm)</span>:</span>
+                            <input type="number" id="tn2-roughness" value="0.0015" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                                   class="w-24 bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs font-semibold focus:outline-none">
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-[11px] border-collapse min-w-[700px]">
+                            <thead>
+                                <tr class="bg-slate-100 border-b border-slate-200 text-slate-600">
+                                    <th class="p-2 text-center w-10">TT</th>
+                                    <th class="p-2 text-center">Q (l/ph)</th>
+                                    <th class="p-2 text-center">Vận tốc V (m/s)</th>
+                                    <th class="p-2 text-center bg-blue-50/50">h₁ (cm)</th>
+                                    <th class="p-2 text-center bg-blue-50/50">h₂ (cm)</th>
+                                    <th class="p-2 text-center font-bold text-indigo-700">h<sub>d</sub> = &Delta;h (cm)</th>
+                                    <th class="p-2 text-center font-bold text-emerald-700 bg-emerald-50/50">Hệ số cản f<sub>TN</sub></th>
+                                    <th class="p-2 text-center">Re</th>
+                                    <th class="p-2 text-center font-bold text-indigo-800 bg-indigo-50/50">Hệ số cản f<sub>LT</sub></th>
+                                    <th class="p-2 text-center font-bold text-amber-700">&Delta;f</th>
+                                    <th class="p-2 text-center font-bold text-red-700">SS%</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tn2-table-body" class="divide-y divide-slate-100">
+                                <!-- JS Generated -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TN3: Đột mở -->
+            <div id="sub3-panel" class="subtab-panel hidden space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                    <div class="flex flex-col md:flex-row justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800">Thí nghiệm 3: Xác định tổn thất cục bộ đột mở</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Ống nghiệm đoạn 3-3 đến 4-4. Đường kính co hẹp <span class="font-semibold text-blue-700">d<sub>3</sub> = 12 mm</span>.</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                    <th class="p-2 text-center">TT</th>
+                                    <th class="p-2 text-center">Q (l/ph)</th>
+                                    <th class="p-2 text-center">V<sub>3</sub> (m/s)</th>
+                                    <th class="p-2 text-center bg-blue-50/50 w-24">h₃ (cm)</th>
+                                    <th class="p-2 text-center bg-blue-50/50 w-24">h₄ (cm)</th>
+                                    <th class="p-2 text-center font-bold text-indigo-700">h<sub>cmr</sub> (cm)</th>
+                                    <th class="p-2 text-center font-bold text-emerald-700">Hệ số cản K<sub>mr</sub></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tn3-table-body" class="divide-y divide-slate-100 text-xs">
+                                <!-- JS Generated -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 text-right text-xs font-bold text-emerald-800 bg-emerald-50 py-2 px-3 rounded-lg inline-block">
+                        Hệ số tổn thất mở rộng trung bình K<sub>mr,tb</sub>: <span id="kmr-average">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TN4: Đột thu -->
+            <div id="sub4-panel" class="subtab-panel hidden space-y-4">
+                <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                    <div class="flex flex-col md:flex-row justify-between gap-4 mb-4">
+                        <div>
+                            <h3 class="font-bold text-slate-800">Thí nghiệm 4: Xác định tổn thất cục bộ đột thu</h3>
+                            <p class="text-xs text-slate-500 mt-0.5">Ống nghiệm đoạn 5-5 đến 6-6. Đường kính <span class="font-semibold text-blue-700">d<sub>5</sub> = 26 mm</span>.</p>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 border-b border-slate-200 text-slate-600">
+                                    <th class="p-2 text-center">TT</th>
+                                    <th class="p-2 text-center">Q (l/ph)</th>
+                                    <th class="p-2 text-center">V<sub>5</sub> (m/s)</th>
+                                    <th class="p-2 text-center bg-blue-50/50 w-24">h₅ (cm)</th>
+                                    <th class="p-2 text-center bg-blue-50/50 w-24">h₆ (cm)</th>
+                                    <th class="p-2 text-center font-bold text-indigo-700">h<sub>cdt</sub> (cm)</th>
+                                    <th class="p-2 text-center font-bold text-emerald-700">Hệ số cản K<sub>th</sub></th>
+                                </tr>
+                            </thead>
+                            <tbody id="tn4-table-body" class="divide-y divide-slate-100 text-xs">
+                                <!-- JS Generated -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3 text-right text-xs font-bold text-emerald-800 bg-emerald-50 py-2 px-3 rounded-lg inline-block">
+                        Hệ số tổn thất co hẹp trung bình K<sub>th,tb</sub>: <span id="kth-average">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: BERNOULLI (THÍ NGHIỆM 5) -->
+        <div id="tab3" class="tab-content hidden space-y-6">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base">Thí nghiệm 5: Đường áp lực (HGL) và Đường năng lượng (EGL)</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Xây dựng biểu đồ phân bố năng lượng dọc theo các mặt cắt 7, 8, 9, 10, 11.</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <label class="text-xs font-semibold text-slate-500">Chọn lưu lượng phân tích:</label>
+                        <select id="bernoulli-q-select" onchange="updateBernoulliGraph(true); triggerAutoSave();" class="bg-slate-50 border border-slate-200 text-xs font-bold rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <option value="0.5">0.5 l/ph</option>
+                            <option value="1.0">1.0 l/ph</option>
+                            <option value="1.5">1.5 l/ph</option>
+                            <option value="2.0">2.0 l/ph</option>
+                            <option value="2.5">2.5 l/ph</option>
+                            <option value="3.0" selected>3.0 l/ph</option>
+                            <option value="3.5">3.5 l/ph</option>
+                            <option value="4.0">4.0 l/ph</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Input table for HGL heights at 7-11 -->
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200/60 mb-6">
+                    <span class="text-xs font-bold text-slate-600 block mb-2"><i class="fa-solid fa-keyboard text-blue-500 mr-1.5"></i>Nhập chiều cao cột nước thực nghiệm h<sub>i</sub> (cm)</span>
+                    <div class="grid grid-cols-5 gap-2">
+                        <div>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 7</label>
+                            <input type="number" id="h-mc7" value="18.5" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 8</label>
+                            <input type="number" id="h-mc8" value="17.2" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 9</label>
+                            <input type="number" id="h-mc9" value="10.1" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 10</label>
+                            <input type="number" id="h-mc10" value="15.8" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 11</label>
+                            <input type="number" id="h-mc11" value="14.4" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Chart Canvas -->
+                <div class="relative w-full h-64 md:h-80">
+                    <canvas id="bernoulliChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Dynamic calculation table for Bernoulli -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+                <div class="p-3 bg-slate-50 font-bold text-slate-700 text-xs border-b border-slate-200">
+                    Bảng 6: Chi tiết tính toán năng lượng cơ học của dòng chảy (tại Q đã chọn)
+                </div>
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100/50 border-b border-slate-200 text-slate-600">
+                                <th class="p-3">Thông số</th>
+                                <th class="p-3 text-center">Mặt cắt 7</th>
+                                <th class="p-3 text-center">Mặt cắt 8</th>
+                                <th class="p-3 text-center">Mặt cắt 9 (Họng)</th>
+                                <th class="p-3 text-center">Mặt cắt 10</th>
+                                <th class="p-3 text-center">Mặt cắt 11</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 font-mono">
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-sans font-medium text-slate-700">Đường kính D<sub>i</sub> (mm)</td>
+                                <td class="p-3 text-center">26.0</td>
+                                <td class="p-3 text-center">26.0</td>
+                                <td class="p-3 text-center text-indigo-600 font-bold">14.0</td>
+                                <td class="p-3 text-center">26.0</td>
+                                <td class="p-3 text-center">26.0</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-sans font-medium text-slate-700">Cột áp đo được h<sub>i</sub> (cm)</td>
+                                <td class="p-3 text-center text-blue-600 font-bold" id="td-h7">-</td>
+                                <td class="p-3 text-center text-blue-600 font-bold" id="td-h8">-</td>
+                                <td class="p-3 text-center text-blue-600 font-bold" id="td-h9">-</td>
+                                <td class="p-3 text-center text-blue-600 font-bold" id="td-h10">-</td>
+                                <td class="p-3 text-center text-blue-600 font-bold" id="td-h11">-</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50">
+                                <td class="p-3 font-sans font-medium text-slate-700">Vận tốc dòng chảy V<sub>i</sub> (m/s)</td>
+                                <td class="p-3 text-center" id="td-v7">-</td>
+                                <td class="p-3 text-center" id="td-v8">-</td>
+                                <td class="p-3 text-center text-indigo-600 font-bold" id="td-v9">-</td>
+                                <td class="p-3 text-center" id="td-v10">-</td>
+                                <td class="p-3 text-center" id="td-v11">-</td>
+                            </tr>
+                            <tr class="hover:bg-slate-50 bg-indigo-50/20">
+                                <td class="p-3 font-sans font-semibold text-slate-800">Cột năng lượng E<sub>i</sub> (cm)</td>
+                                <td class="p-3 text-center font-bold text-slate-800" id="td-e7">-</td>
+                                <td class="p-3 text-center font-bold text-slate-800" id="td-e8">-</td>
+                                <td class="p-3 text-center font-bold text-slate-800" id="td-e9">-</td>
+                                <td class="p-3 text-center font-bold text-slate-800" id="td-e10">-</td>
+                                <td class="p-3 text-center font-bold text-slate-800" id="td-e11">-</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <script type="module">
+        // Global Constants & State
+        const g = 9.81; // Gravity constant
+        
+        // Reynolds experiment uses 9 flow rates (including 0.75 l/ph)
+        const q_values_reynolds = [0.50, 0.75, 1.00, 1.25, 1.50, 2.00, 2.50, 3.00, 4.00];
+        
+        // Head loss & Bernoulli experiments use 8 flow rates (excluding 0.75, including 3.50)
+        const q_values_losses = [0.50, 1.00, 1.50, 2.00, 2.50, 3.00, 3.50, 4.00];
+        
+        // Default actual states from user's manual markings
+        const default_actual_states = ["PT", "PT", "PT", "PT", "PT", "PT", "CT", "CT", "CT"];
+
+        // Pre-loaded dummy height data for Losses (Tổn thất) - 8 rows mapping exactly to q_values_losses
+        const mock_heights = {
+            tn2: [
+                { h1: 28.5, h2: 27.8 }, // 0.5 l/ph
+                { h1: 27.8, h2: 26.2 }, // 1.0 l/ph
+                { h1: 26.9, h2: 24.5 }, // 1.5 l/ph
+                { h1: 25.8, h2: 22.3 }, // 2.0 l/ph
+                { h1: 24.4, h2: 19.8 }, // 2.5 l/ph
+                { h1: 22.8, h2: 16.9 }, // 3.0 l/ph
+                { h1: 21.0, h2: 13.5 }, // 3.5 l/ph
+                { h1: 18.9, h2: 9.6 }   // 4.0 l/ph
+            ],
+            tn3: [
+                { h3: 28.0, h4: 28.2 }, // 0.5 l/ph
+                { h3: 26.8, h4: 27.2 }, // 1.0 l/ph
+                { h3: 25.3, h4: 26.0 }, // 1.5 l/ph
+                { h3: 23.4, h4: 24.5 }, // 2.0 l/ph
+                { h3: 21.2, h4: 22.8 }, // 2.5 l/ph
+                { h3: 18.7, h4: 20.8 }, // 3.0 l/ph
+                { h3: 15.9, h4: 18.6 }, // 3.5 l/ph
+                { h3: 12.8, h4: 16.2 }  // 4.0 l/ph
+            ],
+            tn4: [
+                { h5: 28.1, h6: 27.8 }, // 0.5 l/ph
+                { h5: 27.2, h6: 26.1 }, // 1.0 l/ph
+                { h5: 25.9, h6: 23.9 }, // 1.5 l/ph
+                { h5: 24.2, h6: 21.2 }, // 2.0 l/ph
+                { h5: 22.1, h6: 18.0 }, // 2.5 l/ph
+                { h5: 19.6, h6: 14.3 }, // 3.0 l/ph
+                { h5: 16.7, h6: 10.1 }, // 3.5 l/ph
+                { h5: 13.4, h6: 5.4 }   // 4.0 l/ph
+            ]
+        };
+
+        // Realistic interactive mock heights for Bernoulli experiment (7, 8, 9, 10, 11)
+        const mock_bernoulli = {
+            "0.5": { h7: 24.5, h8: 24.1, h9: 22.8, h10: 23.9, h11: 23.5 },
+            "1.0": { h7: 23.1, h8: 22.4, h9: 19.2, h10: 22.0, h11: 21.2 },
+            "1.5": { h7: 21.8, h8: 20.8, h9: 16.1, h10: 20.1, h11: 19.1 },
+            "2.0": { h7: 20.4, h8: 19.1, h9: 13.2, h10: 18.2, h11: 17.0 },
+            "2.5": { h7: 19.2, h8: 17.8, h9: 11.4, h10: 16.8, h11: 15.3 },
+            "3.0": { h7: 18.5, h8: 17.2, h9: 10.1, h10: 15.8, h11: 14.4 },
+            "3.5": { h7: 17.0, h8: 15.4, h9: 8.5,  h10: 13.9, h11: 12.2 },
+            "4.0": { h7: 15.2, h8: 13.3, h9: 6.8,  h10: 11.7, h11: 9.8 }
+        };
+
+        let myChart = null; // ChartJS placeholder
+
+        // Global variables for Firebase
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'fluid-mechanics-lab-app';
+
+        // Publish internal functions to window for onclick/oninput handlers
+        window.switchTab = switchTab;
+        window.switchSubTab = switchSubTab;
+        window.resetDefaults = resetDefaults;
+        window.calculateAll = calculateAll;
+        window.calculateLosses = calculateLosses;
+        window.updateBernoulliGraph = updateBernoulliGraph;
+        window.forceCloudSave = forceCloudSave;
+        window.triggerAutoSave = triggerAutoSave;
+        window.updateActualState = updateActualState;
+
+        // Initialize App
+        window.addEventListener('load', async () => {
+            calculateAll();
+            initializeLossesInputs();
+            calculateLosses();
+            updateBernoulliGraph(true);
+            await initFirebase();
+        });
+
+        // Initialize Firebase Storage
+        async function initFirebase() {
+            if (typeof __firebase_config === 'undefined') {
+                document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-database mr-1"></i>Chế độ Ngoại tuyến</span>`;
+                return;
+            }
+            try {
+                const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
+                const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
+                const { getFirestore } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                // Authentication Rule 3
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        currentUser = user;
+                        document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-cloud mr-1"></i>Bộ nhớ mây: Sẵn sàng</span>`;
+                        await loadProgress();
+                    } else {
+                        document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-cloud-slash mr-1"></i>Chưa đăng nhập</span>`;
+                    }
+                });
+            } catch (e) {
+                console.error("Firebase init failed: ", e);
+                document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Lỗi kết nối đám mây</span>`;
+            }
+        }
+
+        // Auto Save debouncing
+        let saveTimeout = null;
+        function triggerAutoSave() {
+            if (!db || !currentUser) return;
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            const indicator = document.getElementById('cloud-save-indicator');
+            if (indicator) {
+                indicator.innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-pencil mr-1"></i>Đang nhập liệu...</span>';
+            }
+            saveTimeout = setTimeout(saveProgress, 1500);
+        }
+
+        function forceCloudSave() {
+            if (!db || !currentUser) {
+                alert("Hệ thống hiện đang chạy ở chế độ ngoại tuyến, không hỗ trợ lưu trữ đám mây.");
+                return;
+            }
+            saveProgress();
+        }
+
+        async function saveProgress() {
+            if (!db || !currentUser) return;
+            const indicator = document.getElementById('cloud-save-indicator');
+            if (indicator) {
+                indicator.innerHTML = '<span class="text-indigo-600 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Đang đồng bộ...</span>';
+            }
+
+            const dataToSave = {
+                baseD: parseFloat(document.getElementById('base-d').value),
+                baseT: parseFloat(document.getElementById('base-t').value),
+                baseNu: parseFloat(document.getElementById('base-nu').value),
+                tn2L: parseFloat(document.getElementById('tn2-l').value),
+                tn2Roughness: parseFloat(document.getElementById('tn2-roughness').value),
+                
+                // Heights
+                tn2Heights: [],
+                tn3Heights: [],
+                tn4Heights: [],
+                
+                // Bernoulli
+                bernoulliHeights: {
+                    h7: parseFloat(document.getElementById('h-mc7').value),
+                    h8: parseFloat(document.getElementById('h-mc8').value),
+                    h9: parseFloat(document.getElementById('h-mc9').value),
+                    h10: parseFloat(document.getElementById('h-mc10').value),
+                    h11: parseFloat(document.getElementById('h-mc11').value)
+                },
+                bernoulliQ: document.getElementById('bernoulli-q-select').value,
+                updatedAt: new Date().toISOString()
+            };
+
+            // Grab inputs
+            q_values_losses.forEach((_, i) => {
+                dataToSave.tn2Heights.push({
+                    h1: parseFloat(document.getElementById(`tn2-h1-${i}`).value),
+                    h2: parseFloat(document.getElementById(`tn2-h2-${i}`).value)
+                });
+                dataToSave.tn3Heights.push({
+                    h3: parseFloat(document.getElementById(`tn3-h3-${i}`).value),
+                    h4: parseFloat(document.getElementById(`tn3-h4-${i}`).value)
+                });
+                dataToSave.tn4Heights.push({
+                    h5: parseFloat(document.getElementById(`tn4-h5-${i}`).value),
+                    h6: parseFloat(document.getElementById(`tn4-h6-${i}`).value)
+                });
+            });
+
+            try {
+                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+                // Strict Path Rule 1
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedLabData', 'progress');
+                await setDoc(docRef, dataToSave);
+                
+                if (indicator) {
+                    indicator.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Đã tự động lưu đám mây</span>';
+                    setTimeout(() => {
+                        indicator.innerHTML = '';
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error("Cloud save error: ", err);
+                if (indicator) {
+                    indicator.innerHTML = '<span class="text-red-500 font-bold"><i class="fa-solid fa-circle-exclamation mr-1"></i>Lỗi tự động lưu</span>';
+                }
+            }
+        }
+
+        async function loadProgress() {
+            if (!db || !currentUser) return;
+            const indicator = document.getElementById('cloud-save-indicator');
+            try {
+                const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedLabData', 'progress');
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    
+                    if (data.baseD !== undefined) document.getElementById('base-d').value = data.baseD;
+                    if (data.baseT !== undefined) document.getElementById('base-t').value = data.baseT;
+                    if (data.baseNu !== undefined) document.getElementById('base-nu').value = data.baseNu;
+                    if (data.tn2L !== undefined) document.getElementById('tn2-l').value = data.tn2L;
+                    if (data.tn2Roughness !== undefined) document.getElementById('tn2-roughness').value = data.tn2Roughness;
+                    
+                    // Set heights back to inputs
+                    if (data.tn2Heights && data.tn2Heights.length === q_values_losses.length) {
+                        data.tn2Heights.forEach((h, i) => {
+                            const h1El = document.getElementById(`tn2-h1-${i}`);
+                            const h2El = document.getElementById(`tn2-h2-${i}`);
+                            if (h1El) h1El.value = h.h1;
+                            if (h2El) h2El.value = h.h2;
+                        });
+                    }
+                    if (data.tn3Heights && data.tn3Heights.length === q_values_losses.length) {
+                        data.tn3Heights.forEach((h, i) => {
+                            const h3El = document.getElementById(`tn3-h3-${i}`);
+                            const h4El = document.getElementById(`tn3-h4-${i}`);
+                            if (h3El) h3El.value = h.h3;
+                            if (h4El) h4El.value = h.h4;
+                        });
+                    }
+                    if (data.tn4Heights && data.tn4Heights.length === q_values_losses.length) {
+                        data.tn4Heights.forEach((h, i) => {
+                            const h5El = document.getElementById(`tn4-h5-${i}`);
+                            const h6El = document.getElementById(`tn4-h6-${i}`);
+                            if (h5El) h5El.value = h.h5;
+                            if (h6El) h6El.value = h.h6;
+                        });
+                    }
+
+                    // Bernoulli
+                    if (data.bernoulliHeights) {
+                        document.getElementById('h-mc7').value = data.bernoulliHeights.h7;
+                        document.getElementById('h-mc8').value = data.bernoulliHeights.h8;
+                        document.getElementById('h-mc9').value = data.bernoulliHeights.h9;
+                        document.getElementById('h-mc10').value = data.bernoulliHeights.h10;
+                        document.getElementById('h-mc11').value = data.bernoulliHeights.h11;
+                    }
+                    if (data.bernoulliQ !== undefined) {
+                        document.getElementById('bernoulli-q-select').value = data.bernoulliQ;
+                    }
+
+                    // Recalculate
+                    calculateAll();
+                    calculateLosses();
+                    updateBernoulliGraph(false);
+
+                    if (indicator) {
+                        indicator.innerHTML = '<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-circle-check mr-1"></i>Đã tải lại số liệu của bạn</span>';
+                        setTimeout(() => {
+                            indicator.innerHTML = '';
+                        }, 3000);
+                    }
+                }
+            } catch (err) {
+                console.error("Load progress error: ", err);
+            }
+        }
+
+        // Switch Main Tabs
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-blue-600', 'text-blue-600');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
+            document.getElementById('btn-' + tabId).classList.add('border-blue-600', 'text-blue-600');
+            document.getElementById('btn-' + tabId).classList.remove('border-transparent', 'text-slate-500');
+
+            if(tabId === 'tab3') {
+                setTimeout(() => updateBernoulliGraph(false), 100); // redraw chart when switching to Bernoulli tab
+            }
+        }
+
+        // Switch Sub Tabs for Losses
+        function switchSubTab(subId) {
+            document.querySelectorAll('.subtab-panel').forEach(el => el.classList.add('hidden'));
+            document.getElementById(subId + '-panel').classList.remove('hidden');
+
+            document.querySelectorAll('.subtab-btn').forEach(btn => {
+                btn.classList.remove('text-blue-600', 'bg-white', 'shadow-sm');
+                btn.classList.add('text-slate-600');
+            });
+            document.getElementById('btn-' + subId).classList.add('text-blue-600', 'bg-white', 'shadow-sm');
+            document.getElementById('btn-' + subId).classList.remove('text-slate-600');
+        }
+
+        // Reset Settings to Defaults
+        function resetDefaults() {
+            document.getElementById('base-d').value = 26;
+            document.getElementById('base-t').value = 30;
+            document.getElementById('base-nu').value = 0.87;
+            document.getElementById('tn2-roughness').value = 0.0015;
+            calculateAll();
+            calculateLosses();
+            updateBernoulliGraph(true);
+            triggerAutoSave();
+        }
+
+        // Core Calculation for Tab 1 (Reynolds)
+        function calculateAll() {
+            const D_mm = parseFloat(document.getElementById('base-d').value) || 26;
+            const nu_factor = parseFloat(document.getElementById('base-nu').value) || 0.87;
+            const nu = nu_factor * Math.pow(10, -6);
+            const D = D_mm / 1000; // to meters
+
+            const tbody = document.getElementById('reynolds-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            let reLaminarMax = 0;
+            let reTransMin = 999999;
+            let reTransMax = 0;
+
+            q_values_reynolds.forEach((Q_lph, index) => {
+                const Q = Q_lph / 1000 / 60; // m3/s
+                const V = (4 * Q) / (Math.PI * Math.pow(D, 2));
+                const Re = (V * D) / nu;
+
+                let state = "";
+                let stateClass = "";
+                if (Re < 2320) {
+                    state = "Chảy tầng";
+                    stateClass = "text-emerald-700 bg-emerald-50 border border-emerald-100";
+                    if (Re > reLaminarMax) reLaminarMax = Re;
+                } else if (Re > 4000) {
+                    state = "Chảy rối";
+                    stateClass = "text-red-700 bg-red-50 border border-red-100";
+                } else {
+                    state = "Chuyển tiếp";
+                    stateClass = "text-amber-700 bg-amber-50 border border-amber-100";
+                    if (Re < reTransMin) reTransMin = Re;
+                    if (Re > reTransMax) reTransMax = Re;
+                }
+
+                // Selected actual state
+                const currentActual = default_actual_states[index];
+
+                const row = document.createElement('tr');
+                row.className = "hover:bg-slate-50 transition-colors";
+                row.innerHTML = `
+                    <td class="p-3 text-center font-semibold text-slate-500">${index + 1}</td>
+                    <td class="p-3 text-center font-bold text-slate-800">${Q_lph.toFixed(2)}</td>
+                    <td class="p-3 text-center text-slate-600 font-mono text-xs">${Q.toExponential(3)}</td>
+                    <td class="p-3 text-center font-semibold text-indigo-700 font-mono">${V.toFixed(4)}</td>
+                    <td class="p-3 text-center font-bold text-slate-900 font-mono">${Math.round(Re)}</td>
+                    <td class="p-3 text-center">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${stateClass}">${state}</span>
+                    </td>
+                    <td class="p-2 text-center">
+                        <select onchange="updateActualState(${index}, this.value)" 
+                                class="w-full text-xs font-bold rounded p-1 bg-slate-50 border border-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500">
+                            <option value="PT" ${currentActual === "PT" ? "selected" : ""}>PT (Tầng)</option>
+                            <option value="CT" ${currentActual === "CT" ? "selected" : ""}>CT (Rối)</option>
+                        </select>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Update range text in suggestion report
+            document.getElementById('re-range-laminar').innerText = `0 đến ${Math.round(reLaminarMax)}`;
+            document.getElementById('re-range-trans').innerText = `${Math.round(reTransMin)} đến ${Math.round(reTransMax)}`;
+        }
+
+        // Live update actual states array if changed
+        function updateActualState(index, val) {
+            default_actual_states[index] = val;
+            triggerAutoSave();
+        }
+
+        // Solve Colebrook-White equation iteratively for turbulent flow
+        function solveColebrook(Re, d_m, epsilon_mm) {
+            const epsilon_m = (parseFloat(epsilon_mm) || 0.0015) / 1000; // convert to meters
+            const rel_roughness = epsilon_m / d_m;
+            
+            // Initial guess (Haaland approximation)
+            let f = 1 / Math.pow(-1.8 * Math.log10(Math.pow(rel_roughness / 3.7, 1.11) + 6.9 / Re), 2);
+            if (isNaN(f) || !isFinite(f)) f = 0.02;
+
+            // Iterative solver
+            for (let i = 0; i < 25; i++) {
+                const term = (rel_roughness / 3.7) + (2.51 / (Re * Math.sqrt(f)));
+                if (term <= 0) break;
+                const inv_sqrt_f = -2 * Math.log10(term);
+                const next_f = 1 / Math.pow(inv_sqrt_f, 2);
+                if (Math.abs(next_f - f) < 1e-7) {
+                    f = next_f;
+                    break;
+                }
+                f = next_f;
+            }
+            return f;
+        }
+
+        // Initialize user-modifiable inputs for tab 2 (losses)
+        function initializeLossesInputs() {
+            // TN2 table gen
+            const tn2_body = document.getElementById('tn2-table-body');
+            if (!tn2_body) return;
+            tn2_body.innerHTML = '';
+            q_values_losses.forEach((Q, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 text-center font-semibold text-slate-500">${i + 1}</td>
+                    <td class="p-2 text-center font-bold">${Q.toFixed(2)}</td>
+                    <td class="p-2 text-center font-mono" id="tn2-v-${i}">-</td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn2-h1-${i}" value="${mock_heights.tn2[i].h1}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn2-h2-${i}" value="${mock_heights.tn2[i].h2}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-2 text-center font-bold font-mono text-indigo-700" id="tn2-dh-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-emerald-700 bg-emerald-50/30" id="tn2-f-${i}">-</td>
+                    <td class="p-2 text-center font-mono text-slate-500" id="tn2-re-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-indigo-800 bg-indigo-50/30" id="tn2-flt-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-amber-700" id="tn2-df-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-red-700" id="tn2-ss-${i}">-</td>
+                `;
+                tn2_body.appendChild(tr);
+            });
+
+            // TN3 table gen
+            const tn3_body = document.getElementById('tn3-table-body');
+            if (!tn3_body) return;
+            tn3_body.innerHTML = '';
+            q_values_losses.forEach((Q, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 text-center font-semibold text-slate-500">${i + 1}</td>
+                    <td class="p-2 text-center font-bold">${Q.toFixed(2)}</td>
+                    <td class="p-2 text-center font-mono" id="tn3-v-${i}">-</td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn3-h3-${i}" value="${mock_heights.tn3[i].h3}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn3-h4-${i}" value="${mock_heights.tn3[i].h4}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-2 text-center font-bold font-mono text-indigo-700" id="tn3-dh-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-emerald-700" id="tn3-kmr-${i}">-</td>
+                `;
+                tn3_body.appendChild(tr);
+            });
+
+            // TN4 table gen
+            const tn4_body = document.getElementById('tn4-table-body');
+            if (!tn4_body) return;
+            tn4_body.innerHTML = '';
+            q_values_losses.forEach((Q, i) => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 text-center font-semibold text-slate-500">${i + 1}</td>
+                    <td class="p-2 text-center font-bold">${Q.toFixed(2)}</td>
+                    <td class="p-2 text-center font-mono" id="tn4-v-${i}">-</td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn4-h5-${i}" value="${mock_heights.tn4[i].h5}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-1 text-center bg-blue-50/20">
+                        <input type="number" id="tn4-h6-${i}" value="${mock_heights.tn4[i].h6}" step="any" oninput="calculateLosses(); triggerAutoSave();" 
+                               class="w-full text-center text-xs font-semibold p-1 rounded border border-slate-200">
+                    </td>
+                    <td class="p-2 text-center font-bold font-mono text-indigo-700" id="tn4-dh-${i}">-</td>
+                    <td class="p-2 text-center font-bold font-mono text-emerald-700" id="tn4-kth-${i}">-</td>
+                `;
+                tn4_body.appendChild(tr);
+            });
+        }
+
+        // Calculations for Loss Panels (Dọc đường, đột mở, đột thu)
+        function calculateLosses() {
+            const nu_factor = parseFloat(document.getElementById('base-nu').value) || 0.87;
+            const nu = nu_factor * Math.pow(10, -6);
+            const l_val = parseFloat(document.getElementById('tn2-l').value) || 0.8;
+            const roughness_mm = parseFloat(document.getElementById('tn2-roughness').value) || 0.0015;
+
+            // --- TN2: Dọc đường (Pipe diameter d_1 = d_2 = 12mm) ---
+            const d_tn2 = 0.012; 
+            let sum_f = 0;
+            let valid_f_count = 0;
+
+            q_values_losses.forEach((Q_lph, i) => {
+                const V_el = document.getElementById(`tn2-v-${i}`);
+                if (!V_el) return;
+
+                const Q = Q_lph / 1000 / 60;
+                const V = (4 * Q) / (Math.PI * Math.pow(d_tn2, 2));
+                const Re = (V * d_tn2) / nu;
+
+                const h1 = parseFloat(document.getElementById(`tn2-h1-${i}`).value) || 0;
+                const h2 = parseFloat(document.getElementById(`tn2-h2-${i}`).value) || 0;
+                const hd_cm = Math.abs(h1 - h2);
+                const hd_m = hd_cm / 100;
+
+                // 1. Experimental friction factor
+                let f_exp = 0;
+                if(V > 0) {
+                    f_exp = (hd_m * 2 * g * d_tn2) / (l_val * Math.pow(V, 2));
+                    sum_f += f_exp;
+                    valid_f_count++;
+                }
+
+                // 2. Theoretical friction factor
+                let f_lt = 0;
+                if (Re < 2320) {
+                    f_lt = Re > 0 ? (64 / Re) : 0; // Laminar
+                } else {
+                    f_lt = solveColebrook(Re, d_tn2, roughness_mm); // Turbulent
+                }
+
+                // 3. Error analysis
+                const delta_f = f_exp - f_lt;
+                const ss_percent = f_lt > 0 ? (delta_f / f_lt) * 100 : 0;
+
+                document.getElementById(`tn2-v-${i}`).innerText = V.toFixed(3);
+                document.getElementById(`tn2-dh-${i}`).innerText = hd_cm.toFixed(1);
+                document.getElementById(`tn2-f-${i}`).innerText = f_exp.toFixed(4);
+                document.getElementById(`tn2-re-${i}`).innerText = Math.round(Re);
+                document.getElementById(`tn2-flt-${i}`).innerText = f_lt.toFixed(4);
+                document.getElementById(`tn2-df-${i}`).innerText = (delta_f >= 0 ? "+" : "") + delta_f.toFixed(4);
+                document.getElementById(`tn2-ss-${i}`).innerText = ss_percent.toFixed(2) + "%";
+            });
+            const avg_f = valid_f_count > 0 ? (sum_f / valid_f_count) : 0;
+            const avg_f_el = document.getElementById('f-average');
+            if (avg_f_el) avg_f_el.innerText = avg_f.toFixed(4);
+
+            // --- TN3: Đột mở (d_3 = 12mm) ---
+            const d_tn3 = 0.012;
+            let sum_kmr = 0;
+            let valid_kmr_count = 0;
+
+            q_values_losses.forEach((Q_lph, i) => {
+                const V3_el = document.getElementById(`tn3-v-${i}`);
+                if (!V3_el) return;
+
+                const Q = Q_lph / 1000 / 60;
+                const V3 = (4 * Q) / (Math.PI * Math.pow(d_tn3, 2));
+
+                const h3 = parseFloat(document.getElementById(`tn3-h3-${i}`).value) || 0;
+                const h4 = parseFloat(document.getElementById(`tn3-h4-${i}`).value) || 0;
+                const hc_cm = Math.abs(h3 - h4);
+                const hc_m = hc_cm / 100;
+
+                let kmr = 0;
+                if(V3 > 0) {
+                    kmr = (hc_m * 2 * g) / Math.pow(V3, 2);
+                    sum_kmr += kmr;
+                    valid_kmr_count++;
+                }
+
+                document.getElementById(`tn3-v-${i}`).innerText = V3.toFixed(3);
+                document.getElementById(`tn3-dh-${i}`).innerText = hc_cm.toFixed(1);
+                document.getElementById(`tn3-kmr-${i}`).innerText = kmr.toFixed(4);
+            });
+            const avg_kmr = valid_kmr_count > 0 ? (sum_kmr / valid_kmr_count) : 0;
+            const avg_kmr_el = document.getElementById('kmr-average');
+            if (avg_kmr_el) avg_kmr_el.innerText = avg_kmr.toFixed(4);
+
+            // --- TN4: Đột thu (d_5 = 26mm) ---
+            const d_tn4 = 0.026;
+            let sum_kth = 0;
+            let valid_kth_count = 0;
+
+            q_values_losses.forEach((Q_lph, i) => {
+                const V5_el = document.getElementById(`tn4-v-${i}`);
+                if (!V5_el) return;
+
+                const Q = Q_lph / 1000 / 60;
+                const V5 = (4 * Q) / (Math.PI * Math.pow(d_tn4, 2));
+
+                const h5 = parseFloat(document.getElementById(`tn4-h5-${i}`).value) || 0;
+                const h6 = parseFloat(document.getElementById(`tn4-h6-${i}`).value) || 0;
+                const hc_cm = Math.abs(h5 - h6);
+                const hc_m = hc_cm / 100;
+
+                let kth = 0;
+                if(V5 > 0) {
+                    kth = (hc_m * 2 * g) / Math.pow(V5, 2);
+                    sum_kth += kth;
+                    valid_kth_count++;
+                }
+
+                document.getElementById(`tn4-v-${i}`).innerText = V5.toFixed(3);
+                document.getElementById(`tn4-dh-${i}`).innerText = hc_cm.toFixed(1);
+                document.getElementById(`tn4-kth-${i}`).innerText = kth.toFixed(4);
+            });
+            const avg_kth = valid_kth_count > 0 ? (sum_kth / valid_kth_count) : 0;
+            const avg_kth_el = document.getElementById('kth-average');
+            if (avg_kth_el) avg_kth_el.innerText = avg_kth.toFixed(4);
+        }
+
+        // Update Bernoulli chart & data panel
+        function updateBernoulliGraph(flowRateChanged = false) {
+            const Q_select = document.getElementById('bernoulli-q-select');
+            if (!Q_select) return;
+
+            const Q_lph = parseFloat(Q_select.value) || 3.0;
+            const Q = Q_lph / 1000 / 60; // m3/s
+
+            // If user changes flow rate, automatically populate input fields with corresponding mock data
+            if (flowRateChanged) {
+                const key = Q_lph.toFixed(1);
+                if (mock_bernoulli[key]) {
+                    document.getElementById('h-mc7').value = mock_bernoulli[key].h7;
+                    document.getElementById('h-mc8').value = mock_bernoulli[key].h8;
+                    document.getElementById('h-mc9').value = mock_bernoulli[key].h9;
+                    document.getElementById('h-mc10').value = mock_bernoulli[key].h10;
+                    document.getElementById('h-mc11').value = mock_bernoulli[key].h11;
+                }
+            }
+
+            // Diameters for sections 7 to 11
+            const d_vals = [0.026, 0.026, 0.014, 0.026, 0.026]; // 9 is narrow throat (họng venturi)
+            
+            // Gather input Heights (h_7 to h_11 in cm)
+            const h_inputs = [
+                parseFloat(document.getElementById('h-mc7').value) || 0,
+                parseFloat(document.getElementById('h-mc8').value) || 0,
+                parseFloat(document.getElementById('h-mc9').value) || 0,
+                parseFloat(document.getElementById('h-mc10').value) || 0,
+                parseFloat(document.getElementById('h-mc11').value) || 0
+            ];
+
+            const velocities = [];
+            const HGL = []; // Hydraulic Grade Line (h_i in cm)
+            const EGL = []; // Energy Grade Line (h_i + V^2/(2g) in cm)
+
+            d_vals.forEach((d, i) => {
+                const V = (4 * Q) / (Math.PI * Math.pow(d, 2));
+                velocities.push(V);
+                
+                const h_i = h_inputs[i]; // cm
+                HGL.push(h_i);
+
+                // dynamic head: (V^2 / 2g) * 100 (to convert meters to cm)
+                const dyn_head_cm = (Math.pow(V, 2) / (2 * g)) * 100;
+                EGL.push(h_i + dyn_head_cm);
+
+                // Update text fields on the data table
+                const h_el = document.getElementById(`td-h${i+7}`);
+                const v_el = document.getElementById(`td-v${i+7}`);
+                const e_el = document.getElementById(`td-e${i+7}`);
+                if (h_el) h_el.innerText = h_i.toFixed(1);
+                if (v_el) v_el.innerText = V.toFixed(3);
+                if (e_el) e_el.innerText = (h_i + dyn_head_cm).toFixed(2);
+            });
+
+            // Redraw ChartJS
+            const chartCanvas = document.getElementById('bernoulliChart');
+            if (!chartCanvas) return;
+            const ctx = chartCanvas.getContext('2d');
+            
+            if (myChart) {
+                myChart.destroy();
+            }
+
+            myChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Mặt cắt 7', 'Mặt cắt 8', 'Mặt cắt 9 (Họng)', 'Mặt cắt 10', 'Mặt cắt 11'],
+                    datasets: [
+                        {
+                            label: 'Đường năng lượng EGL (Cột nước toàn phần)',
+                            data: EGL,
+                            borderColor: '#4f46e5',
+                            backgroundColor: 'rgba(79, 70, 229, 0.05)',
+                            fill: true,
+                            tension: 0.2,
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#4f46e5'
+                        },
+                        {
+                            label: 'Đường áp lực HGL (Cột áp tĩnh)',
+                            data: HGL,
+                            borderColor: '#2563eb',
+                            backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                            fill: true,
+                            tension: 0.2,
+                            borderWidth: 3,
+                            pointRadius: 5,
+                            pointBackgroundColor: '#2563eb'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                boxWidth: 12,
+                                font: {
+                                    size: 11,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Chiều cao cột nước (cm)',
+                                font: {
+                                    weight: 'bold'
+                                }
+                            },
+                            suggestedMin: 0
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>
