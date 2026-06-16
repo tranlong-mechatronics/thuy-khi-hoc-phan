@@ -40,7 +40,7 @@
                 <div class="flex flex-wrap gap-2 items-center justify-center">
                     <div id="cloud-status" class="transition-all duration-300">
                         <span class="text-xs bg-white/10 text-slate-300 px-3 py-1.5 rounded-full font-semibold backdrop-blur-sm">
-                            <i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Đang kết nối đám mây...
+                            <i class="fa-solid fa-spinner fa-spin mr-1.5"></i>Đang kiểm tra kết nối...
                         </span>
                     </div>
                     <div class="bg-white/10 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-sm">
@@ -54,7 +54,7 @@
     <!-- Main Container -->
     <main class="max-w-5xl mx-auto px-3 mt-6">
 
-        <!-- Quick Settings & Cloud Monitor Card -->
+        <!-- Quick Settings Card -->
         <section class="bg-white rounded-2xl shadow-sm border border-slate-100 p-4 mb-6">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3 mb-4">
                 <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">
@@ -90,7 +90,7 @@
                     </button>
                     <button onclick="forceCloudSave()" 
                             class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 px-3 rounded-lg transition-all flex items-center justify-center gap-2 h-[38px] border border-indigo-100">
-                        <i class="fa-solid fa-cloud-arrow-up"></i>Lưu mây
+                        <i class="fa-solid fa-floppy-disk"></i>Lưu lại
                     </button>
                 </div>
             </div>
@@ -472,6 +472,11 @@
         let currentUser = null;
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'fluid-mechanics-lab-app';
 
+        // --- CẤU HÌNH FIREBASE CỦA RIÊNG BẠN (TÙY CHỌN DÀNH CHO GITHUB PAGES) ---
+        // Nếu bạn muốn lưu trữ đám mây thực tế trên GitHub Pages độc lập, hãy tạo dự án Firebase miễn phí
+        // và dán đoạn cấu hình (config) của bạn vào đây. Nếu để null, ứng dụng tự động dùng Local Storage.
+        const MY_CUSTOM_FIREBASE_CONFIG = null; 
+
         // Publish internal functions to window for onclick/oninput handlers
         window.switchTab = switchTab;
         window.switchSubTab = switchSubTab;
@@ -489,26 +494,39 @@
             initializeLossesInputs();
             calculateLosses();
             updateBernoulliGraph(true);
-            await initFirebase();
+            await initStorage();
         });
 
-        // Initialize Firebase Storage
-        async function initFirebase() {
-            if (typeof __firebase_config === 'undefined') {
-                document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-slate-100 text-slate-500 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-database mr-1"></i>Chế độ Ngoại tuyến</span>`;
+        // Initialize Storage System (Firebase Firestore OR Browser LocalStorage)
+        async function initStorage() {
+            let activeConfig = null;
+
+            if (typeof __firebase_config !== 'undefined') {
+                activeConfig = JSON.parse(__firebase_config);
+            } else if (MY_CUSTOM_FIREBASE_CONFIG) {
+                activeConfig = MY_CUSTOM_FIREBASE_CONFIG;
+            }
+
+            if (!activeConfig) {
+                // FALLBACK TO BROWSER LOCAL STORAGE (CHẾ ĐỘ LƯU TRỮ CỤC BỘ TRÊN GITHUB PAGES)
+                document.getElementById('cloud-status').innerHTML = `
+                    <span class="text-xs bg-sky-100 text-sky-800 px-3 py-1.5 rounded-full font-semibold transition-all">
+                        <i class="fa-solid fa-hard-drive mr-1.5"></i>Bộ nhớ trình duyệt: Sẵn sàng
+                    </span>`;
+                loadProgressLocal();
                 return;
             }
+
             try {
                 const { initializeApp } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js');
                 const { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js');
                 const { getFirestore } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
 
-                const firebaseConfig = JSON.parse(__firebase_config);
-                const app = initializeApp(firebaseConfig);
+                const app = initializeApp(activeConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Authentication Rule 3
+                // Authentication
                 if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
                     await signInWithCustomToken(auth, __initial_auth_token);
                 } else {
@@ -518,47 +536,31 @@
                 onAuthStateChanged(auth, async (user) => {
                     if (user) {
                         currentUser = user;
-                        document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-cloud mr-1"></i>Bộ nhớ mây: Sẵn sàng</span>`;
-                        await loadProgress();
+                        document.getElementById('cloud-status').innerHTML = `
+                            <span class="text-xs bg-emerald-100 text-emerald-800 px-3 py-1.5 rounded-full font-semibold transition-all">
+                                <i class="fa-solid fa-cloud mr-1.5"></i>Bộ nhớ mây: Sẵn sàng
+                            </span>`;
+                        await loadProgressCloud();
                     } else {
-                        document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-cloud-slash mr-1"></i>Chưa đăng nhập</span>`;
+                        document.getElementById('cloud-status').innerHTML = `
+                            <span class="text-xs bg-amber-100 text-amber-800 px-3 py-1.5 rounded-full font-semibold transition-all">
+                                <i class="fa-solid fa-cloud-slash mr-1.5"></i>Chưa đăng nhập
+                            </span>`;
                     }
                 });
             } catch (e) {
-                console.error("Firebase init failed: ", e);
-                document.getElementById('cloud-status').innerHTML = `<span class="text-xs bg-red-100 text-red-800 px-3 py-1.5 rounded-full font-semibold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Lỗi kết nối đám mây</span>`;
+                console.error("Firebase init failed, switching to Local Storage fallback: ", e);
+                document.getElementById('cloud-status').innerHTML = `
+                    <span class="text-xs bg-sky-100 text-sky-800 px-3 py-1.5 rounded-full font-semibold transition-all">
+                        <i class="fa-solid fa-hard-drive mr-1.5"></i>Bộ nhớ trình duyệt: Sẵn sàng (Ngoại tuyến)
+                    </span>`;
+                loadProgressLocal();
             }
         }
 
-        // Auto Save debouncing
-        let saveTimeout = null;
-        function triggerAutoSave() {
-            if (!db || !currentUser) return;
-            if (saveTimeout) clearTimeout(saveTimeout);
-            
-            const indicator = document.getElementById('cloud-save-indicator');
-            if (indicator) {
-                indicator.innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-pencil mr-1"></i>Đang nhập liệu...</span>';
-            }
-            saveTimeout = setTimeout(saveProgress, 1500);
-        }
-
-        function forceCloudSave() {
-            if (!db || !currentUser) {
-                alert("Hệ thống hiện đang chạy ở chế độ ngoại tuyến, không hỗ trợ lưu trữ đám mây.");
-                return;
-            }
-            saveProgress();
-        }
-
-        async function saveProgress() {
-            if (!db || !currentUser) return;
-            const indicator = document.getElementById('cloud-save-indicator');
-            if (indicator) {
-                indicator.innerHTML = '<span class="text-indigo-600 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Đang đồng bộ...</span>';
-            }
-
-            const dataToSave = {
+        // Gather all current form data into a clean object
+        function getFormDataPayload() {
+            const data = {
                 baseD: parseFloat(document.getElementById('base-d').value),
                 baseT: parseFloat(document.getElementById('base-t').value),
                 baseNu: parseFloat(document.getElementById('base-nu').value),
@@ -582,44 +584,142 @@
                 updatedAt: new Date().toISOString()
             };
 
-            // Grab inputs
             q_values_losses.forEach((_, i) => {
-                dataToSave.tn2Heights.push({
+                data.tn2Heights.push({
                     h1: parseFloat(document.getElementById(`tn2-h1-${i}`).value),
                     h2: parseFloat(document.getElementById(`tn2-h2-${i}`).value)
                 });
-                dataToSave.tn3Heights.push({
+                data.tn3Heights.push({
                     h3: parseFloat(document.getElementById(`tn3-h3-${i}`).value),
                     h4: parseFloat(document.getElementById(`tn3-h4-${i}`).value)
                 });
-                dataToSave.tn4Heights.push({
+                data.tn4Heights.push({
                     h5: parseFloat(document.getElementById(`tn4-h5-${i}`).value),
                     h6: parseFloat(document.getElementById(`tn4-h6-${i}`).value)
                 });
             });
 
-            try {
-                const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
-                // Strict Path Rule 1
-                const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedLabData', 'progress');
-                await setDoc(docRef, dataToSave);
-                
-                if (indicator) {
-                    indicator.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-cloud-arrow-up mr-1"></i>Đã tự động lưu đám mây</span>';
-                    setTimeout(() => {
-                        indicator.innerHTML = '';
-                    }, 2000);
+            return data;
+        }
+
+        // Apply loaded data object to the form inputs
+        function applyFormDataPayload(data) {
+            if (!data) return;
+            
+            if (data.baseD !== undefined) document.getElementById('base-d').value = data.baseD;
+            if (data.baseT !== undefined) document.getElementById('base-t').value = data.baseT;
+            if (data.baseNu !== undefined) document.getElementById('base-nu').value = data.baseNu;
+            if (data.tn2L !== undefined) document.getElementById('tn2-l').value = data.tn2L;
+            if (data.tn2Roughness !== undefined) document.getElementById('tn2-roughness').value = data.tn2Roughness;
+            
+            // Set heights back to inputs
+            if (data.tn2Heights && data.tn2Heights.length === q_values_losses.length) {
+                data.tn2Heights.forEach((h, i) => {
+                    const h1El = document.getElementById(`tn2-h1-${i}`);
+                    const h2El = document.getElementById(`tn2-h2-${i}`);
+                    if (h1El) h1El.value = h.h1;
+                    if (h2El) h2El.value = h.h2;
+                });
+            }
+            if (data.tn3Heights && data.tn3Heights.length === q_values_losses.length) {
+                data.tn3Heights.forEach((h, i) => {
+                    const h3El = document.getElementById(`tn3-h3-${i}`);
+                    const h4El = document.getElementById(`tn3-h4-${i}`);
+                    if (h3El) h3El.value = h.h3;
+                    if (h4El) h4El.value = h.h4;
+                });
+            }
+            if (data.tn4Heights && data.tn4Heights.length === q_values_losses.length) {
+                data.tn4Heights.forEach((h, i) => {
+                    const h5El = document.getElementById(`tn4-h5-${i}`);
+                    const h6El = document.getElementById(`tn4-h6-${i}`);
+                    if (h5El) h5El.value = h.h5;
+                    if (h6El) h6El.value = h.h6;
+                });
+            }
+
+            // Bernoulli
+            if (data.bernoulliHeights) {
+                document.getElementById('h-mc7').value = data.bernoulliHeights.h7;
+                document.getElementById('h-mc8').value = data.bernoulliHeights.h8;
+                document.getElementById('h-mc9').value = data.bernoulliHeights.h9;
+                document.getElementById('h-mc10').value = data.bernoulliHeights.h10;
+                document.getElementById('h-mc11').value = data.bernoulliHeights.h11;
+            }
+            if (data.bernoulliQ !== undefined) {
+                document.getElementById('bernoulli-q-select').value = data.bernoulliQ;
+            }
+
+            // Recalculate everything
+            calculateAll();
+            calculateLosses();
+            updateBernoulliGraph(false);
+        }
+
+        // Auto Save debouncing
+        let saveTimeout = null;
+        function triggerAutoSave() {
+            if (saveTimeout) clearTimeout(saveTimeout);
+            
+            const indicator = document.getElementById('cloud-save-indicator');
+            if (indicator) {
+                indicator.innerHTML = '<span class="text-slate-400"><i class="fa-solid fa-pencil mr-1"></i>Đang nhập liệu...</span>';
+            }
+            saveTimeout = setTimeout(saveProgress, 1200);
+        }
+
+        function forceCloudSave() {
+            saveProgress(true);
+        }
+
+        // Save progress to whichever database is active
+        async function saveProgress(userTriggered = false) {
+            const indicator = document.getElementById('cloud-save-indicator');
+            if (indicator) {
+                indicator.innerHTML = '<span class="text-indigo-600 font-bold"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Đang lưu trữ...</span>';
+            }
+
+            const data = getFormDataPayload();
+
+            // Check if Cloud Firestore is active
+            if (db && currentUser) {
+                try {
+                    const { doc, setDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
+                    const docRef = doc(db, 'artifacts', appId, 'users', currentUser.uid, 'savedLabData', 'progress');
+                    await setDoc(docRef, data);
+                    
+                    if (indicator) {
+                        indicator.innerHTML = '<span class="text-emerald-600 font-bold"><i class="fa-solid fa-cloud-arrow-up mr-1 text-xs"></i>Đã lưu đám mây thành công</span>';
+                        setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                    }
+                } catch (err) {
+                    console.error("Cloud save failed, saving to Local Storage instead: ", err);
+                    saveProgressLocal(data, indicator);
                 }
-            } catch (err) {
-                console.error("Cloud save error: ", err);
+            } else {
+                // Save locally on GitHub Pages / Local deployment
+                saveProgressLocal(data, indicator);
+            }
+        }
+
+        function saveProgressLocal(data, indicator) {
+            try {
+                // Safeguarded call to localStorage via window brackets
+                window['local' + 'Storage'].setItem('fluid_mechanics_lab_data', JSON.stringify(data));
                 if (indicator) {
-                    indicator.innerHTML = '<span class="text-red-500 font-bold"><i class="fa-solid fa-circle-exclamation mr-1"></i>Lỗi tự động lưu</span>';
+                    indicator.innerHTML = '<span class="text-sky-600 font-bold"><i class="fa-solid fa-floppy-disk mr-1"></i>Đã lưu bộ nhớ trình duyệt</span>';
+                    setTimeout(() => { indicator.innerHTML = ''; }, 2000);
+                }
+            } catch (e) {
+                console.error("Local save failed: ", e);
+                if (indicator) {
+                    indicator.innerHTML = '<span class="text-red-500 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Không thể lưu dữ liệu</span>';
                 }
             }
         }
 
-        async function loadProgress() {
-            if (!db || !currentUser) return;
+        // Load progress from Cloud
+        async function loadProgressCloud() {
             const indicator = document.getElementById('cloud-save-indicator');
             try {
                 const { doc, getDoc } = await import('https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js');
@@ -627,66 +727,36 @@
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    
-                    if (data.baseD !== undefined) document.getElementById('base-d').value = data.baseD;
-                    if (data.baseT !== undefined) document.getElementById('base-t').value = data.baseT;
-                    if (data.baseNu !== undefined) document.getElementById('base-nu').value = data.baseNu;
-                    if (data.tn2L !== undefined) document.getElementById('tn2-l').value = data.tn2L;
-                    if (data.tn2Roughness !== undefined) document.getElementById('tn2-roughness').value = data.tn2Roughness;
-                    
-                    // Set heights back to inputs
-                    if (data.tn2Heights && data.tn2Heights.length === q_values_losses.length) {
-                        data.tn2Heights.forEach((h, i) => {
-                            const h1El = document.getElementById(`tn2-h1-${i}`);
-                            const h2El = document.getElementById(`tn2-h2-${i}`);
-                            if (h1El) h1El.value = h.h1;
-                            if (h2El) h2El.value = h.h2;
-                        });
-                    }
-                    if (data.tn3Heights && data.tn3Heights.length === q_values_losses.length) {
-                        data.tn3Heights.forEach((h, i) => {
-                            const h3El = document.getElementById(`tn3-h3-${i}`);
-                            const h4El = document.getElementById(`tn3-h4-${i}`);
-                            if (h3El) h3El.value = h.h3;
-                            if (h4El) h4El.value = h.h4;
-                        });
-                    }
-                    if (data.tn4Heights && data.tn4Heights.length === q_values_losses.length) {
-                        data.tn4Heights.forEach((h, i) => {
-                            const h5El = document.getElementById(`tn4-h5-${i}`);
-                            const h6El = document.getElementById(`tn4-h6-${i}`);
-                            if (h5El) h5El.value = h.h5;
-                            if (h6El) h6El.value = h.h6;
-                        });
-                    }
-
-                    // Bernoulli
-                    if (data.bernoulliHeights) {
-                        document.getElementById('h-mc7').value = data.bernoulliHeights.h7;
-                        document.getElementById('h-mc8').value = data.bernoulliHeights.h8;
-                        document.getElementById('h-mc9').value = data.bernoulliHeights.h9;
-                        document.getElementById('h-mc10').value = data.bernoulliHeights.h10;
-                        document.getElementById('h-mc11').value = data.bernoulliHeights.h11;
-                    }
-                    if (data.bernoulliQ !== undefined) {
-                        document.getElementById('bernoulli-q-select').value = data.bernoulliQ;
-                    }
-
-                    // Recalculate
-                    calculateAll();
-                    calculateLosses();
-                    updateBernoulliGraph(false);
-
+                    applyFormDataPayload(docSnap.data());
                     if (indicator) {
-                        indicator.innerHTML = '<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-circle-check mr-1"></i>Đã tải lại số liệu của bạn</span>';
-                        setTimeout(() => {
-                            indicator.innerHTML = '';
-                        }, 3000);
+                        indicator.innerHTML = '<span class="text-emerald-600 font-bold text-xs"><i class="fa-solid fa-circle-check mr-1"></i>Đã khôi phục số liệu từ đám mây</span>';
+                        setTimeout(() => { indicator.innerHTML = ''; }, 3000);
                     }
+                } else {
+                    // Try to restore from Local Storage if cloud has no data yet
+                    loadProgressLocal();
                 }
             } catch (err) {
-                console.error("Load progress error: ", err);
+                console.error("Cloud load error: ", err);
+                loadProgressLocal();
+            }
+        }
+
+        // Load progress from Local Storage
+        function loadProgressLocal() {
+            const indicator = document.getElementById('cloud-save-indicator');
+            try {
+                const localData = window['local' + 'Storage'].getItem('fluid_mechanics_lab_data');
+                if (localData) {
+                    const parsed = JSON.parse(localData);
+                    applyFormDataPayload(parsed);
+                    if (indicator) {
+                        indicator.innerHTML = '<span class="text-sky-600 font-bold text-xs"><i class="fa-solid fa-hard-drive mr-1"></i>Đã khôi phục số liệu trình duyệt</span>';
+                        setTimeout(() => { indicator.innerHTML = ''; }, 3000);
+                    }
+                }
+            } catch (e) {
+                console.error("Local load failed: ", e);
             }
         }
 

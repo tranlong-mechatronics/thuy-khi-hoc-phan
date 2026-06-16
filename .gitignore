@@ -8,3 +8,6 @@ Desktop.ini
 
 # Recycle Bin used on NTFS volumes
 $RECYCLE.BIN/
+
+# Temporary files
+FIX.html
