@@ -350,7 +350,7 @@
                 </div>
 
                 <!-- Live Chart Canvas -->
-                <div class="relative w-full h-64 md:h-80">
+                <div class="relative w-full h-80 md:h-[400px]">
                     <canvas id="bernoulliChart"></canvas>
                 </div>
             </div>
@@ -1178,16 +1178,20 @@
             if (myChart) {
                 myChart.data.datasets[0].data = EGL;
                 myChart.data.datasets[1].data = HGL;
+                myChart.options.plugins.legend.labels.font.size = window.innerWidth < 480 ? 10 : 11;
+                myChart.options.plugins.legend.labels.boxWidth = window.innerWidth < 480 ? 8 : 12;
+                myChart.options.plugins.legend.labels.padding = window.innerWidth < 480 ? 6 : 10;
+                myChart.options.scales.y.title.font.size = window.innerWidth < 480 ? 10 : 11;
                 myChart.update();
             } else {
                 const ctx = chartCanvas.getContext('2d');
                 myChart = new Chart(ctx, {
                     type: 'line',
                     data: {
-                        labels: ['Mặt cắt 7', 'Mặt cắt 8', 'Mặt cắt 9 (Họng)', 'Mặt cắt 10', 'Mặt cắt 11'],
+                        labels: ['MC 7', 'MC 8', 'MC 9 (Họng)', 'MC 10', 'MC 11'],
                         datasets: [
                             {
-                                label: 'Đường năng lượng EGL (Cột nước toàn phần)',
+                                label: 'Đường năng lượng EGL',
                                 data: EGL,
                                 borderColor: '#4f46e5',
                                 backgroundColor: 'rgba(79, 70, 229, 0.05)',
@@ -1198,7 +1202,7 @@
                                 pointBackgroundColor: '#4f46e5'
                             },
                             {
-                                label: 'Đường áp lực HGL (Cột áp tĩnh)',
+                                label: 'Đường áp lực HGL',
                                 data: HGL,
                                 borderColor: '#2563eb',
                                 backgroundColor: 'rgba(37, 99, 235, 0.05)',
@@ -1217,9 +1221,10 @@
                             legend: {
                                 position: 'top',
                                 labels: {
-                                    boxWidth: 12,
+                                    boxWidth: window.innerWidth < 480 ? 8 : 12,
+                                    padding: window.innerWidth < 480 ? 6 : 10,
                                     font: {
-                                        size: 11,
+                                        size: window.innerWidth < 480 ? 10 : 11,
                                         weight: 'bold'
                                     }
                                 }
@@ -1231,6 +1236,7 @@
                                     display: true,
                                     text: 'Chiều cao cột nước (cm)',
                                     font: {
+                                        size: window.innerWidth < 480 ? 10 : 11,
                                         weight: 'bold'
                                     }
                                 },
