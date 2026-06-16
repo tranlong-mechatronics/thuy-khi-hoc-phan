@@ -327,23 +327,23 @@
                     <span class="text-xs font-bold text-slate-600 block mb-2"><i class="fa-solid fa-keyboard text-blue-500 mr-1.5"></i>Nhập chiều cao cột nước thực nghiệm h<sub>i</sub> (cm)</span>
                     <div class="grid grid-cols-5 gap-2">
                         <div>
-                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 7</label>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">MC 7</label>
                             <input type="number" id="h-mc7" value="18.5" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 8</label>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">MC 8</label>
                             <input type="number" id="h-mc8" value="17.2" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 9</label>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">MC 9</label>
                             <input type="number" id="h-mc9" value="10.1" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 10</label>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">MC 10</label>
                             <input type="number" id="h-mc10" value="15.8" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
                         </div>
                         <div>
-                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">Mặt cắt 11</label>
+                            <label class="block text-[10px] text-center font-bold text-slate-500 mb-1">MC 11</label>
                             <input type="number" id="h-mc11" value="14.4" step="any" oninput="updateBernoulliGraph(false); triggerAutoSave();" class="w-full text-center text-sm font-semibold p-1.5 rounded border border-slate-200">
                         </div>
                     </div>
@@ -1176,7 +1176,10 @@
             if (!chartCanvas) return;
             
             if (myChart) {
+                myChart.data.labels = ['MC 7', 'MC 8', 'MC 9 (Họng)', 'MC 10', 'MC 11'];
+                myChart.data.datasets[0].label = 'Đường năng lượng EGL';
                 myChart.data.datasets[0].data = EGL;
+                myChart.data.datasets[1].label = 'Đường áp lực HGL';
                 myChart.data.datasets[1].data = HGL;
                 myChart.options.plugins.legend.labels.font.size = window.innerWidth < 480 ? 10 : 11;
                 myChart.options.plugins.legend.labels.boxWidth = window.innerWidth < 480 ? 8 : 12;
