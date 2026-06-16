@@ -10,6 +10,8 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Chart.js for Bernoulli graph -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Drag data points on chart -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-dragdata@2.2.5/dist/chartjs-plugin-dragdata.min.js"></script>
     <style>
         /* Custom scrollbar for clean table scrolling on mobile */
         .custom-scrollbar::-webkit-scrollbar {
@@ -1123,19 +1125,26 @@
                                 fill: true,
                                 tension: 0.2,
                                 borderWidth: 3,
-                                pointRadius: 5,
-                                pointBackgroundColor: '#4f46e5'
+                                pointRadius: 6,
+                                pointBackgroundColor: '#4f46e5',
+                                dragData: false
                             },
                             {
                                 label: 'Đường áp lực HGL',
                                 data: HGL,
                                 borderColor: '#2563eb',
-                                backgroundColor: 'rgba(37, 99, 235, 0.05)',
+                                backgroundColor: 'rgba(37, 99, 235, 0.08)',
                                 fill: true,
                                 tension: 0.2,
                                 borderWidth: 3,
-                                pointRadius: 5,
-                                pointBackgroundColor: '#2563eb'
+                                pointRadius: 8,
+                                pointHoverRadius: 11,
+                                pointBackgroundColor: '#2563eb',
+                                pointBorderColor: '#fff',
+                                pointBorderWidth: 2,
+                                pointHoverBackgroundColor: '#1d4ed8',
+                                pointHoverBorderColor: '#fff',
+                                pointHoverBorderWidth: 2
                             }
                         ]
                     },
@@ -1153,6 +1162,30 @@
                                         weight: 'bold'
                                     }
                                 }
+                            },
+                            dragData: {
+                                round: 1,
+                                showTooltip: true,
+                                magnet: { to: Math.round },
+                                onDragStart: function(e, datasetIndex, index, value) {
+                                    if (datasetIndex === 0) return false;
+                                    chartCanvas.style.cursor = 'grabbing';
+                                },
+                                onDrag: function(e, datasetIndex, index, value) {
+                                    if (datasetIndex !== 1) return false;
+                                    const inputIds = ['h-mc7', 'h-mc8', 'h-mc9', 'h-mc10', 'h-mc11'];
+                                    const el = document.getElementById(inputIds[index]);
+                                    if (el) el.value = Math.max(0, value).toFixed(1);
+                                },
+                                onDragEnd: function(e, datasetIndex, index, value) {
+                                    chartCanvas.style.cursor = 'default';
+                                    if (datasetIndex !== 1) return;
+                                    const inputIds = ['h-mc7', 'h-mc8', 'h-mc9', 'h-mc10', 'h-mc11'];
+                                    const el = document.getElementById(inputIds[index]);
+                                    if (el) el.value = Math.max(0, value).toFixed(1);
+                                    updateBernoulliGraph(false);
+                                    triggerAutoSave();
+                                }
                             }
                         },
                         scales: {
@@ -1166,6 +1199,14 @@
                                     }
                                 },
                                 suggestedMin: 0
+                            }
+                        },
+                        onHover: function(e) {
+                            const points = myChart.getElementsAtEventForMode(e.native, 'point', { intersect: true }, false);
+                            if (points.length > 0 && points[0].datasetIndex === 1) {
+                                chartCanvas.style.cursor = 'grab';
+                            } else {
+                                chartCanvas.style.cursor = 'default';
                             }
                         }
                     }
